@@ -3,9 +3,6 @@ import visualization
 
 import numpy as np
 import torch
-import torch.nn as nn
-import torch.optim as optim
-from collections import deque
 
 import IQL
 import QMix
@@ -34,7 +31,9 @@ def start_AEC(configuration, policy=None):
             if policy is None:
                 action = env.action_space(agent).sample()
             else:
-                action = policy(agent, observation)
+                agent_id = int(agent.split('_')[-1])
+                observations = [observation] * configuration["n_pursuers"]
+                action = policy(agent_id, observations)
 
         env.step(action)
         step_count += 1

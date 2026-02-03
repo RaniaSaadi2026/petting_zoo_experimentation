@@ -1,13 +1,8 @@
-import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from collections import deque
-import matplotlib.pyplot as plt
 
 import random
-
-from pettingzoo.sisl import pursuit_v4
 
 class QNet(nn.Module):
     def __init__(self, observation_shape, n_actions, hidden_dim=128):
@@ -42,27 +37,60 @@ class QNet(nn.Module):
         return self.fc(x)
 
 
-class Buffer:
-    def __init__(self, capacity=10000):
-        self.buffer = deque(maxlen=capacity)
-    
-    def push(self, state, action, reward, next_state, termination):
-        self.buffer.append((state, action, reward, next_state, termination))
+class ReplayBuffer:
+    def __init__(self, capacity, obs_shape, device='cpu'):
+        self.capacity = capacity
+        self.device = device
+        self.pos = 0
+        self.size = 0
+
+        self.obs_buf = torch.zeros((capacity, *obs_shape), dtype=torch.float32, device=device)
+        self.next_obs_buf = torch.zeros((capacity, *obs_shape), dtype=torch.float32, device=device)
+        self.actions_buf = torch.zeros((capacity,), dtype=torch.int64, device=device)
+        self.rewards_buf = torch.zeros((capacity,), dtype=torch.float32, device=device)
+        self.done_buf = torch.zeros((capacity,), dtype=torch.float32, device=device)
+
+    def push_tensor(self, obs, action, reward, next_obs, done):
+        device = self.obs_buf.device
+        obs_tensor = torch.tensor(obs, dtype=self.obs_buf.dtype, device=device)
+        next_obs_tensor = torch.tensor(next_obs, dtype=self.next_obs_buf.dtype, device=device)
+        action_tensor = torch.tensor(action, dtype=self.actions_buf.dtype, device=device)
+        reward_tensor = torch.tensor(reward, dtype=self.rewards_buf.dtype, device=device)
+        done_tensor = torch.tensor(done, dtype=self.done_buf.dtype, device=device)
+
+        idx = self.pos
+        self.obs_buf[idx] = obs_tensor
+        self.next_obs_buf[idx] = next_obs_tensor
+        self.actions_buf[idx] = action_tensor
+        self.rewards_buf[idx] = reward_tensor
+        self.done_buf[idx] = done_tensor
+
+        self.pos = (self.pos + 1) % self.capacity
+        self.size = min(self.size + 1, self.capacity)
 
     def sample(self, batch_size):
-        batch = random.sample(self.buffer, batch_size)
-        states, actions, rewards, next_states, dones = zip(*batch)
-        return (
-            np.array(states),
-            np.array(actions),
-            np.array(rewards),
-            np.array(next_states),
-            np.array(dones)
+        if self.size < batch_size:
+            return None
+        idxs = torch.randint(0, self.size, (batch_size,), device=self.device)
+        batch = dict(
+            obs=self.obs_buf[idxs],
+            actions=self.actions_buf[idxs],
+            rewards=self.rewards_buf[idxs],
+            next_obs=self.next_obs_buf[idxs],
+            done=self.done_buf[idxs]
         )
-    
-    def __len__(self):
-        return len(self.buffer)
+        return batch
 
+    def to_device(self, device):
+        self.device = device
+        self.obs_buf = self.obs_buf.to(device)
+        self.next_obs_buf = self.next_obs_buf.to(device)
+        self.actions_buf = self.actions_buf.to(device)
+        self.rewards_buf = self.rewards_buf.to(device)
+        self.done_buf = self.done_buf.to(device)
+
+    def __len__(self):
+        return self.size
 
 class MARLAgent:
     def __init__(self, observation_shape, n_actions, learning_rate=1e-3, gamma=0.99, device='cpu'):
@@ -80,14 +108,17 @@ class MARLAgent:
         self.optimizer = optim.Adam(self.q_network.parameters(), lr=learning_rate)
 
         # buffer
-        self.buffer = Buffer()
+        self.buffer = ReplayBuffer(capacity=10000, obs_shape=observation_shape, device=device)
 
     # epsilon greedy selection
     def select_action(self, state, epsilon=0.1):
         if random.random() < epsilon:
             return random.randint(0, self.n_actions - 1)
         with torch.no_grad():
-            state_tensor = torch.FloatTensor(state).to(self.device)
+            if not isinstance(state, torch.Tensor):
+                state_tensor = torch.from_numpy(state).float().to(self.device)
+            else:
+                state_tensor = torch.FloatTensor(state).to(self.device)
             q_values = self.q_network(state_tensor)
             return q_values.argmax().item()
     
@@ -96,15 +127,16 @@ class MARLAgent:
         if len(self.buffer) < batch_size:
             return 0.0
         
-        states, actions, rewards, next_states, dones = self.buffer.sample(batch_size)
-        
-        # TF conversion
-        states = torch.FloatTensor(states).to(self.device)
-        actions = torch.LongTensor(actions).to(self.device)
-        rewards = torch.FloatTensor(rewards).to(self.device)
-        next_states = torch.FloatTensor(next_states).to(self.device)
-        dones = torch.FloatTensor(dones).to(self.device)
-        
+        batch = self.buffer.sample(batch_size)
+        if batch is None:
+            return 0.0
+    
+        states = batch['obs']
+        actions = batch['actions']
+        rewards = batch['rewards']
+        next_states = batch['next_obs']
+        dones = batch['done']
+
         # current Q values
         current_q = self.q_network(states).gather(1, actions.unsqueeze(1)).squeeze(1)
         

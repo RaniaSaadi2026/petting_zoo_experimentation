@@ -9,6 +9,7 @@ def frantic_chase(agent, observations, aim_distance=3):
         return np.random.randint(5)
     return utils.chase_evader(evader, aim_distance)
 
+
 def coward_chase(agent, observations, aim_distance=3, buddy_distance=3):
     observation = observations[agent]
     ally = utils.find_ally(observation, aim_distance)
@@ -21,6 +22,7 @@ def coward_chase(agent, observations, aim_distance=3, buddy_distance=3):
         if follow_move == 0:
             return np.random.randint(5)
         return follow_move
+
 
 def group_chase(agent, observations, aim_distance=3, buddy_distance=3):
     observation = observations[agent]
@@ -40,6 +42,7 @@ def group_chase(agent, observations, aim_distance=3, buddy_distance=3):
         return utils.chase_evader(evader, aim_distance)
     # calling backup: no allies, invader found
     return utils.chase_evader(evader, aim_distance)
+
 
 def border_guided_group_chase(agent, observations, aim_distance=3, buddy_distance=3):
     observation = observations[agent]

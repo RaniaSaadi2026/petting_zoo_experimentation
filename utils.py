@@ -14,6 +14,7 @@ def find_evader(observation, aim_distance):
 
     return positions[np.argmin(dists)]
 
+
 def chase_evader(evader, aim_distance):
     cx, cy = aim_distance, aim_distance
     tx, ty = evader
@@ -30,7 +31,8 @@ def chase_evader(evader, aim_distance):
             return 3   # left
         else:
             return 4   # right
-        
+
+
 def find_ally(observation, aim_distance):
     ally_layer = observation[:, :, 1]
     positions = np.argwhere(ally_layer > 0)
@@ -44,6 +46,7 @@ def find_ally(observation, aim_distance):
     dists = np.sum((np.abs(positions - center)), axis=1)
 
     return positions[np.argmin(dists)]
+
 
 def follow_ally(ally, aim_distance, threshold):
     cx, cy = aim_distance, aim_distance
@@ -66,7 +69,8 @@ def follow_ally(ally, aim_distance, threshold):
             return 3   # left
         else:
             return 4   # right
-        
+
+
 def find_borders(observation):
     border_layer = observation[:, :, 0]
     positions = np.argwhere(border_layer > 0)
@@ -76,6 +80,7 @@ def find_borders(observation):
         return None
 
     return positions
+
 
 def follow_path(border, aim_distance):
     cx, cy = aim_distance, aim_distance

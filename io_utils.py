@@ -1,15 +1,9 @@
-import numpy as np
 import torch
-import torch.nn as nn
-import torch.optim as optim
-from torch.serialization import safe_globals
-from collections import deque
 import os
 
 from pettingzoo.sisl import pursuit_v4
 import QMix
 import IQL
-
 
 def load_IQL(model_name, pursuit_config, device=None):
     if device is None:
@@ -37,9 +31,6 @@ def load_IQL(model_name, pursuit_config, device=None):
 
 
 def load_QMIX(filepath, device='cpu'):
-    """
-    Load a saved QMIX agent checkpoint.
-    """
     import torch
     from torch.serialization import safe_globals
 
@@ -51,16 +42,13 @@ def load_QMIX(filepath, device='cpu'):
     obs_shape = checkpoint['obs_shape']
     n_actions = checkpoint['n_actions']
 
-    # Initialize QMIX agent (match your constructor)
     qmix_agent = QMix.QMIXAgent(n_agents=n_agents, observation_shape=obs_shape, n_actions=n_actions)  # adjust args to your class
 
-    # Load the saved networks
     qmix_agent.agent_network.load_state_dict(checkpoint['agent_network'])
     qmix_agent.mixer.load_state_dict(checkpoint['mixer'])
 
     print(f"Loaded QMIX agent from '{filepath}'")
     return qmix_agent
-
 
 
 def marl_agents_to_policy(marl_agents, epsilon=0.0):
