@@ -1,14 +1,16 @@
 import utils
 import numpy as np
 
-def frantic_chase(agent, observation, aim_distance=3):
+def frantic_chase(agent, observations, aim_distance=3):
+    observation = observations[agent]
     evader = utils.find_evader(observation, aim_distance)
     # random move when no observable evader
     if evader is None:
         return np.random.randint(5)
     return utils.chase_evader(evader, aim_distance)
 
-def coward_chase(agent, observation, aim_distance=3, buddy_distance=3):
+def coward_chase(agent, observations, aim_distance=3, buddy_distance=3):
+    observation = observations[agent]
     ally = utils.find_ally(observation, aim_distance)
     # solo random march
     if ally is None:
@@ -20,7 +22,8 @@ def coward_chase(agent, observation, aim_distance=3, buddy_distance=3):
             return np.random.randint(5)
         return follow_move
 
-def group_chase(agent, observation, aim_distance=3, buddy_distance=3):
+def group_chase(agent, observations, aim_distance=3, buddy_distance=3):
+    observation = observations[agent]
     ally = utils.find_ally(observation, aim_distance)
     evader = utils.find_evader(observation, aim_distance)
     # lonely agent: no allies around and no evader found
@@ -38,7 +41,8 @@ def group_chase(agent, observation, aim_distance=3, buddy_distance=3):
     # calling backup: no allies, invader found
     return utils.chase_evader(evader, aim_distance)
 
-def border_guided_group_chase(agent, observation, aim_distance=3, buddy_distance=3):
+def border_guided_group_chase(agent, observations, aim_distance=3, buddy_distance=3):
+    observation = observations[agent]
     ally = utils.find_ally(observation, aim_distance)
     evader = utils.find_evader(observation, aim_distance)
     # lonely agent: no allies around and no evader found
